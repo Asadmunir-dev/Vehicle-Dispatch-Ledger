@@ -1,0 +1,450 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Vehicle Transport Ledger</title>
+    <!-- Tailwind CSS -->
+    <script src="https://cdn.tailwindcss.com"></script>
+    <!-- Font Awesome Icons -->
+    <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.4.0/css/all.min.css">
+    <!-- Google Fonts -->
+    <link rel="preconnect" href="https://fonts.googleapis.com">
+    <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+    <link href="https://fonts.googleapis.com/css2?family=Caveat:wght@600&family=Inter:wght@400;500;600;700&display=swap" rel="stylesheet">
+    <style>
+        .paper-grid {
+            background-color: #fdfbf7;
+            background-image: linear-gradient(#e5e7eb 1px, transparent 1px);
+            background-size: 100% 2.5rem;
+        }
+        .red-border-table th, .red-border-table td {
+            border: 1px solid #ef4444;
+            padding-top: 10px;
+            padding-bottom: 10px;
+        }
+        .red-border-table th {
+            color: #b91c1c;
+            font-family: 'Inter', sans-serif;
+            text-transform: uppercase;
+            letter-spacing: 0.05em;
+        }
+        .handwritten {
+            font-family: 'Caveat', cursive, sans-serif;
+            font-size: 1.25rem;
+            color: #1e293b;
+        }
+
+        /* Print Layout Settings: Full Page Stretch & Single Page Fit */
+        @page {
+            size: A4 portrait;
+            margin: 8mm;
+        }
+        @media print {
+            .no-print {
+                display: none !important;
+            }
+            html, body {
+                background: white !important;
+                padding: 0 !important;
+                margin: 0 !important;
+                width: 100% !important;
+                height: 100% !important;
+                -webkit-print-color-adjust: exact !important;
+                print-color-adjust: exact !important;
+            }
+            .paper-container {
+                box-shadow: none !important;
+                border: 1px solid #ef4444 !important;
+                width: 100% !important;
+                height: 98vh !important;
+                margin: 0 !important;
+                display: flex !important;
+                flex-direction: column !important;
+            }
+            .table-wrapper {
+                flex-grow: 1 !important;
+                display: flex !important;
+                flex-direction: column !important;
+            }
+            table.red-border-table {
+                width: 100% !important;
+                height: 100% !important;
+                border-collapse: collapse !important;
+            }
+            table.red-border-table tbody {
+                height: 100% !important;
+            }
+        }
+    </style>
+</head>
+<body class="bg-slate-100 text-slate-800 font-sans min-h-screen p-4">
+
+    <!-- Top Action Bar -->
+    <div class="max-w-4xl mx-auto mb-4 no-print flex flex-wrap justify-between items-center gap-2 bg-white p-3 rounded-xl shadow-sm border border-slate-200">
+        <div>
+            <h1 class="text-base md:text-lg font-bold text-slate-800 flex items-center gap-2">
+                <i class="fa-solid fa-truck-front text-red-600"></i> Vehicle Dispatch Ledger
+            </h1>
+        </div>
+        <div class="flex items-center gap-2">
+            <button id="add-row-btn" onclick="openAddModal()" class="px-3 py-1.5 bg-red-600 hover:bg-red-700 text-white rounded-lg text-xs font-medium transition flex items-center gap-1 shadow-sm">
+                <i class="fa-solid fa-plus"></i> Add Entry
+            </button>
+            <button onclick="window.print()" class="px-3 py-1.5 bg-slate-700 hover:bg-slate-800 text-white rounded-lg text-xs font-medium transition flex items-center gap-1 shadow-sm">
+                <i class="fa-solid fa-print"></i> Print
+            </button>
+        </div>
+    </div>
+
+    <!-- Status Alert Bar -->
+    <div id="status-bar" class="max-w-4xl mx-auto mb-3 no-print hidden px-3 py-2 rounded-lg text-xs font-medium transition-all"></div>
+
+    <!-- Main Sheet Container -->
+    <div class="max-w-4xl mx-auto bg-white rounded-xl shadow-md border border-red-200 overflow-hidden paper-container">
+        <!-- Responsive Table Container -->
+        <div class="overflow-x-auto table-wrapper">
+            <table class="w-full text-left border-collapse red-border-table h-full">
+                <thead>
+                    <tr class="bg-red-100/70 text-xs text-red-900 font-bold">
+                        <th class="p-3 text-center w-20">S.NO</th>
+                        <th class="p-3 w-32">VEHICAL NO</th>
+                        <th class="p-3 w-36">MOBILE NO</th>
+                        <th class="p-3 w-32 text-right">BAGS QUANTITY</th>
+                        <th class="p-3 w-28 text-right">M. TONS</th>
+                        <th class="p-3 text-center w-16 no-print">ACTIONS</th>
+                    </tr>
+                </thead>
+                <tbody id="ledger-body" class="paper-grid handwritten divide-y divide-red-200">
+                    <!-- Dynamic Data Rows injected here -->
+                </tbody>
+                <!-- Live Totals Footer -->
+                <tfoot class="bg-red-50 font-bold text-slate-900 text-sm border-t-2 border-red-500">
+                    <tr>
+                        <td colspan="3" class="p-3 text-right uppercase tracking-wider text-red-900 font-sans">Total Summary:</td>
+                        <td class="p-3 text-right font-sans text-blue-900 font-extrabold" id="total-bags">0 BAGS</td>
+                        <td class="p-3 text-right font-sans text-emerald-900 font-extrabold" id="total-tons">0.00 M.TONS</td>
+                        <td class="p-3 no-print"></td>
+                    </tr>
+                </tfoot>
+            </table>
+        </div>
+    </div>
+
+    <!-- Modal for Adding / Editing Entry -->
+    <div id="entry-modal" class="fixed inset-0 bg-slate-900/50 backdrop-blur-sm z-50 flex items-center justify-center hidden p-4 no-print">
+        <div class="bg-white rounded-2xl shadow-xl border border-slate-200 w-full max-w-md overflow-hidden animate-in fade-in zoom-in duration-150">
+            <div class="bg-red-600 px-6 py-4 flex justify-between items-center text-white">
+                <h3 id="modal-title" class="font-bold text-lg">Add New Vehicle Entry</h3>
+                <button onclick="closeModal()" class="text-white/80 hover:text-white text-xl">&times;</button>
+            </div>
+            <form id="entry-form" onsubmit="handleFormSubmit(event)" class="p-6 space-y-4">
+                <input type="hidden" id="entry-doc-id" value="">
+                
+                <div>
+                    <label class="block text-xs font-semibold text-slate-600 uppercase mb-1">Serial No (S.NO)</label>
+                    <input type="text" id="input-sno" required placeholder="e.g. 01 (2807)" class="w-full px-3 py-2 border border-slate-300 rounded-lg text-sm focus:outline-none focus:ring-2 focus:ring-red-500">
+                </div>
+                
+                <div>
+                    <label class="block text-xs font-semibold text-slate-600 uppercase mb-1">Vehicle No</label>
+                    <input type="text" id="input-vehical" required placeholder="e.g. NLA 449" class="w-full px-3 py-2 border border-slate-300 rounded-lg text-sm focus:outline-none focus:ring-2 focus:ring-red-500">
+                </div>
+                
+                <div>
+                    <label class="block text-xs font-semibold text-slate-600 uppercase mb-1">Mobile No</label>
+                    <input type="text" id="input-mobile" placeholder="e.g. 0300-2150698" class="w-full px-3 py-2 border border-slate-300 rounded-lg text-sm focus:outline-none focus:ring-2 focus:ring-red-500">
+                </div>
+                
+                <div class="grid grid-cols-2 gap-4">
+                    <div>
+                        <label class="block text-xs font-semibold text-slate-600 uppercase mb-1">Bags Quantity</label>
+                        <input type="number" id="input-bags" min="0" required placeholder="e.g. 1300" class="w-full px-3 py-2 border border-slate-300 rounded-lg text-sm focus:outline-none focus:ring-2 focus:ring-red-500">
+                    </div>
+                    <div>
+                        <label class="block text-xs font-semibold text-slate-600 uppercase mb-1">M.Tons (Optional)</label>
+                        <input type="number" step="0.01" min="0" id="input-tons" placeholder="e.g. 65.0" class="w-full px-3 py-2 border border-slate-300 rounded-lg text-sm focus:outline-none focus:ring-2 focus:ring-red-500">
+                    </div>
+                </div>
+
+                <div class="pt-4 flex justify-end gap-2">
+                    <button type="button" onclick="closeModal()" class="px-4 py-2 border border-slate-300 rounded-lg text-sm font-medium text-slate-700 hover:bg-slate-50 transition">Cancel</button>
+                    <button type="submit" id="save-btn" class="px-4 py-2 bg-red-600 hover:bg-red-700 text-white rounded-lg text-sm font-medium transition shadow">Save Record</button>
+                </div>
+            </form>
+        </div>
+    </div>
+
+    <!-- Firebase SDK Imports & Realtime Sync Handler -->
+    <script type="module">
+        import { initializeApp } from "https://www.gstatic.com/firebasejs/11.6.1/firebase-app.js";
+        import { getAuth, signInAnonymously, signInWithCustomToken } from "https://www.gstatic.com/firebasejs/11.6.1/firebase-auth.js";
+        import { 
+            getFirestore, 
+            collection, 
+            doc, 
+            onSnapshot, 
+            addDoc, 
+            updateDoc, 
+            deleteDoc, 
+            serverTimestamp 
+        } from "https://www.gstatic.com/firebasejs/11.6.1/firebase-firestore.js";
+
+        const appId = typeof __app_id !== 'undefined' ? __app_id : 'vehicle-ledger-app';
+        
+        const firebaseConfig = typeof __firebase_config !== 'undefined' 
+            ? JSON.parse(__firebase_config) 
+            : {
+                apiKey: "AIzaSyDemoConfigKeyForLedgerAppOnly",
+                authDomain: "demo-app.firebaseapp.com",
+                projectId: "demo-app",
+                storageBucket: "demo-app.appspot.com",
+                messagingSenderId: "123456789",
+                appId: "1:123456789:web:abcdef"
+            };
+
+        const initialSampleData = [
+            { sno: '01 (2807)', vehicalNo: 'NLA 449', mobileNo: '0300-2150698', bagsQuantity: 1300, mTons: 65, order: 1 },
+            { sno: '02 (2811)', vehicalNo: 'TLZ 337', mobileNo: '0305-4945158', bagsQuantity: 1200, mTons: 60, order: 2 },
+            { sno: '03 (2809)', vehicalNo: 'TMS 598', mobileNo: '0302 5637301', bagsQuantity: 1300, mTons: 65, order: 3 },
+            { sno: '04 (2808)', vehicalNo: 'TLT 598', mobileNo: '03052019619', bagsQuantity: 1300, mTons: 65, order: 4 },
+            { sno: '05 (2806)', vehicalNo: 'TMQ 648', mobileNo: '03042197663', bagsQuantity: 1300, mTons: 65, order: 5 },
+            { sno: '06 (2810)', vehicalNo: 'TLB 146', mobileNo: '0303 9993171', bagsQuantity: 1200, mTons: 60, order: 6 }
+        ];
+
+        let db = null;
+        let auth = null;
+        let records = [];
+        let isCloudConnected = false;
+
+        async function initFirebase() {
+            try {
+                const app = initializeApp(firebaseConfig);
+                auth = getAuth(app);
+                db = getFirestore(app);
+
+                if (typeof __initial_auth_token !== 'undefined' && __initial_auth_token) {
+                    await signInWithCustomToken(auth, __initial_auth_token);
+                } else {
+                    await signInAnonymously(auth);
+                }
+
+                showStatus("Connected to Cloud Firestore Store", "success");
+                isCloudConnected = true;
+
+                const collectionRef = collection(db, 'artifacts', appId, 'public', 'data', 'vehicle_entries');
+
+                onSnapshot(collectionRef, async (snapshot) => {
+                    if (snapshot.empty) {
+                        for (const item of initialSampleData) {
+                            await addDoc(collectionRef, {
+                                ...item,
+                                createdAt: serverTimestamp()
+                            });
+                        }
+                        return;
+                    }
+
+                    records = [];
+                    snapshot.forEach(docSnap => {
+                        records.push({
+                            id: docSnap.id,
+                            ...docSnap.data()
+                        });
+                    });
+
+                    records.sort((a, b) => (a.order || 0) - (b.order || 0));
+                    renderTable();
+                }, (error) => {
+                    console.error("Firestore Listen Error:", error);
+                    showStatus("Cloud notice: Running in local interactive mode.", "warning");
+                    loadLocalFallback();
+                });
+
+            } catch (err) {
+                console.warn("Firebase initialization failed, falling back to memory:", err);
+                showStatus("Running in Local Offline Mode", "warning");
+                loadLocalFallback();
+            }
+        }
+
+        function loadLocalFallback() {
+            if (records.length === 0) {
+                records = initialSampleData.map((d, idx) => ({ ...d, id: 'local-' + idx }));
+            }
+            renderTable();
+        }
+
+        function renderTable() {
+            const tbody = document.getElementById('ledger-body');
+            tbody.innerHTML = '';
+
+            let totalBags = 0;
+            let totalTons = 0;
+
+            if (records.length === 0) {
+                tbody.innerHTML = `<tr><td colspan="6" class="p-6 text-center text-slate-400 font-sans italic">No vehicle records entered yet. Click "Add Entry" to create one.</td></tr>`;
+            } else {
+                records.forEach((record) => {
+                    const bags = Number(record.bagsQuantity) || 0;
+                    const tons = Number(record.mTons) || 0;
+
+                    totalBags += bags;
+                    totalTons += tons;
+
+                    const row = document.createElement('tr');
+                    row.className = 'hover:bg-red-50/40 transition-colors';
+                    row.innerHTML = `
+                        <td class="p-3 text-center font-bold text-red-900">${escapeHtml(record.sno || '')}</td>
+                        <td class="p-3 font-semibold">${escapeHtml(record.vehicalNo || '')}</td>
+                        <td class="p-3">${escapeHtml(record.mobileNo || '')}</td>
+                        <td class="p-3 text-right font-bold text-blue-900">${bags.toLocaleString()} BAGS</td>
+                        <td class="p-3 text-right font-bold text-emerald-900">${tons ? tons.toFixed(2) + ' M.TONS' : ''}</td>
+                        <td class="p-3 text-center no-print">
+                            <div class="flex items-center justify-center gap-2">
+                                <button onclick="editEntry('${record.id}')" class="text-blue-600 hover:text-blue-800 p-1" title="Edit">
+                                    <i class="fa-solid fa-pen-to-square"></i>
+                                </button>
+                                <button onclick="deleteEntry('${record.id}')" class="text-red-600 hover:text-red-800 p-1" title="Delete">
+                                    <i class="fa-solid fa-trash-can"></i>
+                                </button>
+                            </div>
+                        </td>
+                    `;
+                    tbody.appendChild(row);
+                });
+            }
+
+            document.getElementById('total-bags').textContent = `${totalBags.toLocaleString()} BAGS`;
+            document.getElementById('total-tons').textContent = `${totalTons.toFixed(2)} M.TONS`;
+        }
+
+        window.handleFormSubmit = async function(e) {
+            e.preventDefault();
+            const id = document.getElementById('entry-doc-id').value;
+            const sno = document.getElementById('input-sno').value.trim();
+            const vehicalNo = document.getElementById('input-vehical').value.trim();
+            const mobileNo = document.getElementById('input-mobile').value.trim();
+            const bagsQuantity = parseFloat(document.getElementById('input-bags').value) || 0;
+            const mTons = parseFloat(document.getElementById('input-tons').value) || 0;
+
+            const payload = {
+                sno,
+                vehicalNo,
+                mobileNo,
+                bagsQuantity,
+                mTons,
+                updatedAt: new Date().toISOString()
+            };
+
+            try {
+                if (isCloudConnected && db) {
+                    const colRef = collection(db, 'artifacts', appId, 'public', 'data', 'vehicle_entries');
+                    if (id) {
+                        const docRef = doc(db, 'artifacts', appId, 'public', 'data', 'vehicle_entries', id);
+                        await updateDoc(docRef, payload);
+                        showStatus("Entry updated in Firebase Cloud!", "success");
+                    } else {
+                        payload.order = records.length + 1;
+                        payload.createdAt = serverTimestamp();
+                        await addDoc(colRef, payload);
+                        showStatus("New vehicle entry saved to Cloud!", "success");
+                    }
+                } else {
+                    if (id) {
+                        const index = records.findIndex(r => r.id === id);
+                        if (index !== -1) records[index] = { ...records[index], ...payload };
+                    } else {
+                        records.push({ ...payload, id: 'local-' + Date.now(), order: records.length + 1 });
+                    }
+                    renderTable();
+                    showStatus("Record saved locally", "success");
+                }
+                closeModal();
+            } catch (error) {
+                console.error("Save error:", error);
+                showStatus("Failed to save record: " + error.message, "danger");
+            }
+        };
+
+        window.deleteEntry = async function(id) {
+            if (!confirm("Are you sure you want to delete this vehicle log entry?")) return;
+
+            try {
+                if (isCloudConnected && db) {
+                    const docRef = doc(db, 'artifacts', appId, 'public', 'data', 'vehicle_entries', id);
+                    await deleteDoc(docRef);
+                    showStatus("Record deleted from Cloud Firestore", "success");
+                } else {
+                    records = records.filter(r => r.id !== id);
+                    renderTable();
+                    showStatus("Record deleted locally", "success");
+                }
+            } catch (err) {
+                console.error("Delete Error:", err);
+                showStatus("Error deleting record", "danger");
+            }
+        };
+
+        window.editEntry = function(id) {
+            const item = records.find(r => r.id === id);
+            if (!item) return;
+
+            document.getElementById('entry-doc-id').value = item.id;
+            document.getElementById('input-sno').value = item.sno || '';
+            document.getElementById('input-vehical').value = item.vehicalNo || '';
+            document.getElementById('input-mobile').value = item.mobileNo || '';
+            document.getElementById('input-bags').value = item.bagsQuantity || '';
+            document.getElementById('input-tons').value = item.mTons || '';
+
+            document.getElementById('modal-title').textContent = "Edit Vehicle Entry";
+            document.getElementById('entry-modal').classList.remove('hidden');
+        };
+
+        window.openAddModal = function() {
+            document.getElementById('entry-form').reset();
+            document.getElementById('entry-doc-id').value = '';
+            document.getElementById('modal-title').textContent = "Add New VehicleEntry";
+            document.getElementById('entry-modal').classList.remove('hidden');
+        };
+
+        window.closeModal = function() {
+            document.getElementById('entry-modal').classList.add('hidden');
+        };
+
+        function showStatus(message, type = "info") {
+            const bar = document.getElementById('status-bar');
+            bar.textContent = message;
+            bar.className = "max-w-4xl mx-auto mb-3 no-print px-3 py-2 rounded-lg text-xs font-medium transition-all shadow-sm ";
+            
+            if (type === "success") {
+                bar.classList.add("bg-emerald-100", "text-emerald-800", "border", "border-emerald-200");
+            } else if (type === "warning") {
+                bar.classList.add("bg-amber-100", "text-amber-800", "border", "border-amber-200");
+            } else if (type === "danger") {
+                bar.classList.add("bg-red-100", "text-red-800", "border", "border-red-200");
+            } else {
+                bar.classList.add("bg-blue-100", "text-blue-800", "border", "border-blue-200");
+            }
+
+            bar.classList.remove('hidden');
+            setTimeout(() => {
+                bar.classList.add('hidden');
+            }, 4000);
+        }
+
+        function escapeHtml(str) {
+            return String(str)
+                .replace(/&/g, "&amp;")
+                .replace(/</g, "&lt;")
+                .replace(/>/g, "&gt;")
+                .replace(/"/g, "&quot;")
+                .replace(/'/g, "&#039;");
+        }
+
+        window.onload = function() {
+            initFirebase();
+        };
+    </script>
+</body>
+</html>
